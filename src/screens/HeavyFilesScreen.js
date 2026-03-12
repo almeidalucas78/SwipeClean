@@ -3,6 +3,8 @@ import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity, Alert } fr
 import { usePhotos } from '../hooks/usePhotos';
 import PhotoCard from '../components/PhotoCard';
 import ConfirmationScreen from '../components/ConfirmationScreen';
+import ScreenHeader from '../components/ScreenHeader';
+import ScoreBoard from '../components/ScoreBoard';
 
 export default function HeavyFilesScreen() {
   const { heavyPhotos, permissionStatus, deletePhotosFromGallery, getPhotos } = usePhotos();
@@ -67,16 +69,13 @@ export default function HeavyFilesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>⚖️ Pesos Pesados</Text>
-        <Text style={styles.subtitle}>Os ficheiros que mais ocupam espaço</Text>
-
-        {/* Painel de Gamificação */}
-        <View style={styles.scoreBoard}>
-          <Text style={styles.scoreText}>Espaço a libertar:</Text>
-          <Text style={styles.scoreValue}>{spaceToSave} MB</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title="⚖️ Pesos Pesados"
+        subtitle="Os ficheiros que mais ocupam espaço"
+      >
+        {/* Painel de Gamificação injetado dentro do Header */}
+        <ScoreBoard value={spaceToSave} />
+      </ScreenHeader>
 
       <View style={styles.content}>
         {permissionStatus !== 'granted' ? (
@@ -119,13 +118,6 @@ export default function HeavyFilesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
-  header: { padding: 20, alignItems: 'center', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#1a1a1a' },
-  subtitle: { fontSize: 14, color: '#666', marginTop: 5 },
-  scoreBoard: { marginTop: 15, backgroundColor: '#E6F4FE', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, alignItems: 'center', width: '100%' },
-  scoreText: { color: '#007AFF', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' },
-  scoreValue: { color: '#007AFF', fontSize: 24, fontWeight: '900' },
-
   // A área de conteúdo volta a centralizar os elementos
   content: {
     flex: 1,

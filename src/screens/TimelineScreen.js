@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePhotos } from '../hooks/usePhotos';
 import PhotoCard from '../components/PhotoCard';
 import ConfirmationScreen from '../components/ConfirmationScreen';
+import ScreenHeader from '../components/ScreenHeader';
 
 export default function TimelineScreen() {
   const { groupedPhotos, getPhotos, permissionStatus, deletePhotosFromGallery } = usePhotos();
@@ -77,19 +78,15 @@ export default function TimelineScreen() {
     return (
       <View style={styles.container}>
         {/* Header Super Clean */}
-        <View style={styles.headerSwipe}>
-          <TouchableOpacity style={styles.backButton} onPress={() => {
+        <ScreenHeader
+          title="SwipeClean 📸"
+          subtitle={`${photosRemaining} fotos para revisar`}
+          onBack={() => {
             setSelectedGroup(null);
             setCurrentIndex(0);
             setMarkedForDeletion([]);
-          }}>
-            <Text style={styles.backButtonText}>← Voltar</Text>
-          </TouchableOpacity>
-          <View>
-            <Text style={styles.titleClean}>SwipeClean 📸</Text>
-            <Text style={styles.subtitleClean}>{photosRemaining} fotos para revisar</Text>
-          </View>
-        </View>
+          }}
+        />
 
         {/* Área Centralizada */}
         <View style={styles.content}>
@@ -163,10 +160,10 @@ export default function TimelineScreen() {
   // --- MODO LISTA DE MESES (Padrão) ---
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.titleClean}>📅 Limpeza por Data</Text>
-        <Text style={styles.subtitleClean}>Escolha um mês para revisar</Text>
-      </View>
+      <ScreenHeader 
+        title="📅 Limpeza por Data" 
+        subtitle="Escolha um mês para revisar" 
+      />
 
       {permissionStatus !== 'granted' ? (
         <View style={styles.center}><ActivityIndicator size="large" color="#000" /></View>
@@ -198,12 +195,6 @@ export default function TimelineScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  header: { padding: 30, paddingTop: 60, backgroundColor: '#fff' },
-  headerSwipe: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingTop: 30, backgroundColor: '#fff' },
-  backButton: { marginRight: 20 },
-  backButtonText: { color: '#666', fontSize: 14, fontWeight: 'bold' },
-  titleClean: { fontSize: 24, fontWeight: '900', color: '#1a1a1a', letterSpacing: -0.5 },
-  subtitleClean: { fontSize: 14, color: '#888', marginTop: 4 },
 
   content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
