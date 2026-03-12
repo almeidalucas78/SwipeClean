@@ -20,10 +20,21 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "package": "com.anonymous.SwipeClean"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "O SwipeClean precisa de acesso para buscar as fotos da sua galeria.",
+          "savePhotosPermission": "O SwipeClean precisa de acesso para apagar as fotos que você descartar.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
+    ]
   }
 }
