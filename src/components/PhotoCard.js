@@ -3,7 +3,7 @@ import { StyleSheet, Dimensions, Image, Animated, PanResponder, View, Text } fro
 
 const { width } = Dimensions.get('window');
 
-const PhotoCard = forwardRef(({ photo, onSwipeLeft, onSwipeRight, currentIndex, totalPhotos }, ref) => {
+const PhotoCard = forwardRef(({ photo, onSwipeLeft, onSwipeRight, currentIndex, totalPhotos, children }, ref) => {
   const pan = useRef(new Animated.ValueXY()).current;
 
   const forceSwipe = (direction) => {
@@ -72,6 +72,9 @@ const PhotoCard = forwardRef(({ photo, onSwipeLeft, onSwipeRight, currentIndex, 
     >
       <Image source={{ uri: photo.uri }} style={styles.image} />
       
+      {/* Renderiza conteúdo extra passado pelo pai (Ex: Badge de MB) */}
+      {children}
+
       {/* Overlay apenas com o contador agora */}
       <View style={styles.overlay}>
         <Text style={styles.photoCount}>{currentIndex + 1} de {totalPhotos}</Text>
@@ -86,7 +89,7 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 24, 
     backgroundColor: '#fff',
-    position: 'absolute',
+    // position: 'absolute', // Removido: O SwipeDeck controla o empilhamento agora
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

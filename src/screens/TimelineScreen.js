@@ -1,66 +1,80 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity, FlatList, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity, FlatList } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
 import { usePhotos } from '../hooks/usePhotos';
-import PhotoCard from '../components/PhotoCard';
+import { useSwipeLogic } from '../hooks/useSwipeLogic';
 import ConfirmationScreen from '../components/ConfirmationScreen';
 import ScreenHeader from '../components/ScreenHeader';
+import SwipeDeck from '../components/SwipeDeck';
+import EmptyState from '../components/EmptyState';
 
 export default function TimelineScreen() {
   const { groupedPhotos, getPhotos, permissionStatus, deletePhotosFromGallery } = usePhotos();
-
+  
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [markedForDeletion, setMarkedForDeletion] = useState([]);
-  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [reviewedMonths, setReviewedMonths] = useState([]); 
+  const [showReviewed, setShowReviewed] = useState(false); 
 
-  const swiperRef = useRef(null);
+  const {
+    currentIndex, markedForDeletion, showConfirmation, setShowConfirmation, isDeleting,
+    handleKeep, handleDeleteMark, handleRemoveFromDeletionList, confirmDeletion, resetSwipeState
+  } = useSwipeLogic(deletePhotosFromGallery, () => setSelectedGroup(null));
 
+  // --- SEGURANÇA: LÓGICA DE CARREGAMENTO COM AUTOCURA ---
   useEffect(() => {
+    const loadReviewedMonths = async () => {
+      try {
+        const savedData = await AsyncStorage.getItem('@SwipeClean:reviewedMonths');
+        if (savedData !== null) {
+          try {
+            // Tenta transformar o texto em Array
+            setReviewedMonths(JSON.parse(savedData));
+          } catch (parseError) {
+            // Se os dados estiverem corrompidos, limpa o disco para não travar o app
+            console.warn("Dados corrompidos detectados. Limpando histórico...");
+            await AsyncStorage.removeItem('@SwipeClean:reviewedMonths');
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao ler o disco:", error);
+      }
+    };
+
+    loadReviewedMonths();
     getPhotos();
   }, []);
 
-  const nextPhoto = () => setCurrentIndex((prev) => prev + 1);
-  const handleKeep = () => nextPhoto();
+  const pendingMonths = groupedPhotos.filter(group => !reviewedMonths.includes(group.id));
+  const completedMonths = groupedPhotos.filter(group => reviewedMonths.includes(group.id));
 
-  const handleDeleteMark = (photo) => {
-    setMarkedForDeletion((prev) => {
-      if (!prev.find(p => p.id === photo.id)) return [...prev, photo];
-      return prev;
-    });
-    nextPhoto();
-  };
-
-  const confirmDeletion = async () => {
-    const idsToDelete = markedForDeletion.map(photo => photo.id);
-    setIsDeleting(true);
-    const success = await deletePhotosFromGallery(idsToDelete);
-    setIsDeleting(false);
-
-    if (success) {
-      Alert.alert("Sucesso! 🎉", `${idsToDelete.length} fotos apagadas.`);
-      setMarkedForDeletion([]);
-      setShowConfirmation(false);
-      setSelectedGroup(null);
-      setCurrentIndex(0);
+  // --- LÓGICA DE SALVAMENTO (GRAVA NO DISCO) ---
+  const handleFinishMonth = async () => {
+    if (selectedGroup && !reviewedMonths.includes(selectedGroup.id)) {
+      const updatedMonthsList = [...reviewedMonths, selectedGroup.id];
+      
+      setReviewedMonths(updatedMonthsList); // Atualiza a tela
+      
+      try {
+        // Grava no disco permanentemente
+        await AsyncStorage.setItem('@SwipeClean:reviewedMonths', JSON.stringify(updatedMonthsList));
+      } catch (error) {
+        console.error("Erro ao salvar dados no disco:", error);
+      }
     }
+    setSelectedGroup(null);
+    resetSwipeState();
   };
 
+  // --- DRY APLICADO: O LOADING AGORA FICA DENTRO DO CONFIRMATION SCREEN ---
   if (showConfirmation) {
-    if (isDeleting) {
-      return (
-        <View style={[styles.container, styles.center]}>
-          <ActivityIndicator size="large" color="#FF3B30" />
-          <Text style={{ marginTop: 20 }}>Apagando fotos da galeria...</Text>
-        </View>
-      );
-    }
     return (
       <ConfirmationScreen
         photosToDelete={markedForDeletion}
-        onConfirm={confirmDeletion}
+        isDeleting={isDeleting} // <-- SÓ PASSAR A PROP AQUI
+        onConfirm={() => confirmDeletion()}
         onCancel={() => setShowConfirmation(false)}
+        onRemovePhoto={handleRemoveFromDeletionList}
       />
     );
   }
@@ -72,76 +86,40 @@ export default function TimelineScreen() {
     const photosRemaining = totalPhotos - currentIndex;
     const markedCount = markedForDeletion.length;
     const isButtonActive = markedCount > 0;
-
-    const visiblePhotos = photosToSwipe.slice(currentIndex, currentIndex + 2).reverse();
-
+    
     return (
       <View style={styles.container}>
-        {/* Header Super Clean */}
         <ScreenHeader
           title="SwipeClean 📸"
           subtitle={`${photosRemaining} fotos para revisar`}
           onBack={() => {
             setSelectedGroup(null);
-            setCurrentIndex(0);
-            setMarkedForDeletion([]);
+            resetSwipeState();
           }}
         />
 
-        {/* Área Centralizada */}
         <View style={styles.content}>
           {photosRemaining > 0 ? (
             <View style={styles.cardArea}>
-
-              {/* CAIXA DO BARALHO (Deck) - Garante que os botões grudem na foto */}
-              <View style={styles.deckContainer}>
-
-                {visiblePhotos.map((photo, index) => {
-                  const isTopCard = index === visiblePhotos.length - 1;
-                  return (
-                    <PhotoCard
-                      key={photo.id}
-                      photo={photo}
-                      currentIndex={currentIndex}
-                      totalPhotos={totalPhotos}
-                      ref={isTopCard ? swiperRef : null}
-                      onSwipeLeft={() => handleDeleteMark(photo)}
-                      onSwipeRight={handleKeep}
-                    />
-                  );
-                })}
-
-                {/* Botões Flutuantes colados no fundo da caixa do baralho */}
-                {/* Botões Flutuantes colados no fundo da caixa do baralho */}
-                <View style={styles.floatingButtonsContainer}>
-                  <TouchableOpacity
-                    style={styles.circleButton}
-                    onPress={() => swiperRef.current?.swipeLeft()}
-                  >
-                    {/* Ícone de X */}
-                    <Ionicons name="close" size={36} color="#FF3B30" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.circleButton}
-                    onPress={() => swiperRef.current?.swipeRight()}
-                  >
-                    {/* Ícone de Coração Vazado (outline) */}
-                    <Ionicons name="heart-outline" size={32} color="#34C759" />
-                  </TouchableOpacity>
-                </View>
-
-              </View>
+              <SwipeDeck
+                photos={photosToSwipe}
+                currentIndex={currentIndex}
+                onSwipeLeft={handleDeleteMark}
+                onSwipeRight={handleKeep}
+                showActions={true} 
+                containerStyle={styles.deckContainer}
+              />
             </View>
           ) : (
             <View style={styles.center}>
-              <Text style={{ fontSize: 40, marginBottom: 20 }}>✅</Text>
-              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Mês revisado!</Text>
+              <EmptyState title="Mês revisado!" />
+              <TouchableOpacity style={styles.finishMonthButton} onPress={handleFinishMonth}>
+                <Text style={styles.finishMonthButtonText}>✅ Concluir Revisão do Mês</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
 
-        {/* Rodapé com Botão Inteligente */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.reviewButton, isButtonActive ? styles.reviewButtonActive : styles.reviewButtonInactive]}
@@ -157,36 +135,57 @@ export default function TimelineScreen() {
     );
   }
 
+  const renderMonthCard = ({ item, isReviewed = false }) => (
+    <TouchableOpacity
+      key={item.id}
+      style={[styles.monthCard, isReviewed && styles.monthCardReviewed]}
+      onPress={() => {
+        setSelectedGroup(item);
+        resetSwipeState();
+      }}
+    >
+      <Text style={[styles.monthTitle, isReviewed && styles.monthTitleReviewed]}>{item.title}</Text>
+      <View style={[styles.monthBadge, isReviewed && styles.monthBadgeReviewed]}>
+        <Text style={[styles.monthBadgeText, isReviewed && styles.monthBadgeTextReviewed]}>
+          {item.photos.length} fotos
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   // --- MODO LISTA DE MESES (Padrão) ---
   return (
     <View style={styles.container}>
-      <ScreenHeader 
-        title="📅 Limpeza por Data" 
-        subtitle="Escolha um mês para revisar" 
-      />
+      <ScreenHeader title="📅 Limpeza por Data" subtitle="Escolha um mês para revisar" />
 
       {permissionStatus !== 'granted' ? (
         <View style={styles.center}><ActivityIndicator size="large" color="#000" /></View>
       ) : (
         <FlatList
-          data={groupedPhotos}
+          data={pendingMonths}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 20 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.monthCard}
-              onPress={() => {
-                setSelectedGroup(item);
-                setCurrentIndex(0);
-                setMarkedForDeletion([]);
-              }}
-            >
-              <Text style={styles.monthTitle}>{item.title}</Text>
-              <View style={styles.monthBadge}>
-                <Text style={styles.monthBadgeText}>{item.photos.length} fotos</Text>
+          contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+          renderItem={renderMonthCard}
+          ListFooterComponent={
+            completedMonths.length > 0 ? (
+              <View style={styles.reviewedSection}>
+                <TouchableOpacity 
+                  style={styles.reviewedToggle} 
+                  onPress={() => setShowReviewed(!showReviewed)}
+                >
+                  <Text style={styles.reviewedToggleText}>
+                    {showReviewed ? '🔽 Ocultar' : '▶️ Mostrar'} Meses Revisados ({completedMonths.length})
+                  </Text>
+                </TouchableOpacity>
+
+                {showReviewed && (
+                  <View style={styles.reviewedList}>
+                    {completedMonths.map(item => renderMonthCard({ item, isReviewed: true }))}
+                  </View>
+                )}
               </View>
-            </TouchableOpacity>
-          )}
+            ) : null
+          }
         />
       )}
     </View>
@@ -195,55 +194,31 @@ export default function TimelineScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-
   content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  // A área que engloba tudo
   cardArea: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', paddingBottom: 20 },
-
-  // A "Caixa" invisível que define o tamanho do card e ancora os botões
-  deckContainer: {
-    width: '90%',
-    height: '75%',
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20 // Garante um distanciamento do rodapé
-  },
-
-  // Botões agora ficam presos à borda inferior do deckContainer
-  floatingButtonsContainer: {
-    position: 'absolute',
-    bottom: -32, // Metade do botão pra dentro, metade pra fora
-    flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  circleButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    marginHorizontal: 15,
-  },
-
+  deckContainer: { width: '90%', height: '75%', position: 'relative', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   footer: { padding: 20, paddingBottom: 30, backgroundColor: '#fff' },
   reviewButton: { paddingVertical: 18, borderRadius: 16, alignItems: 'center' },
   reviewButtonInactive: { backgroundColor: '#F0F0F0' },
   reviewButtonActive: { backgroundColor: '#FF3B30' },
   reviewButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   reviewButtonTextInactive: { color: '#a0a0a0' },
-
+  
   monthCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 20, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f0f0f0' },
   monthTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
   monthBadge: { backgroundColor: '#f8f9fa', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   monthBadgeText: { color: '#666', fontWeight: 'bold', fontSize: 14 },
+
+  finishMonthButton: { marginTop: 30, backgroundColor: '#34C759', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 24, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+  finishMonthButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+
+  reviewedSection: { marginTop: 20, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 20 },
+  reviewedToggle: { paddingVertical: 10, alignItems: 'center', backgroundColor: '#f8f9fa', borderRadius: 12, marginBottom: 15 },
+  reviewedToggleText: { color: '#666', fontSize: 14, fontWeight: 'bold' },
+  reviewedList: { opacity: 0.8 }, 
+  monthCardReviewed: { backgroundColor: '#fdfdfd', borderColor: '#e0e0e0', borderStyle: 'dashed' }, 
+  monthTitleReviewed: { color: '#999' },
+  monthBadgeReviewed: { backgroundColor: '#f0f0f0' },
+  monthBadgeTextReviewed: { color: '#999' },
 });

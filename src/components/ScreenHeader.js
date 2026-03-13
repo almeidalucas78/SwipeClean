@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
     padding: 20,
-    paddingTop: 30, // Ajuste para Status Bar se necessário
+    paddingTop: 45, // Ajuste para Status Bar se necessário
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
