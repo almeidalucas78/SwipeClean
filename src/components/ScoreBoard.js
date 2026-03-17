@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { theme } from '../styles/theme'; // <-- IMPORT DO TEMA
 
 export default function ScoreBoard({ label = "Espaço a libertar:", value, unit = "MB" }) {
   return (
@@ -12,21 +13,23 @@ export default function ScoreBoard({ label = "Espaço a libertar:", value, unit 
 
 const styles = StyleSheet.create({
   scoreBoard: {
-    backgroundColor: '#E6F4FE',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
+    backgroundColor: theme.colors.surface, // Fundo neutro do tema
+    paddingHorizontal: theme.spacing.l,
+    paddingVertical: theme.spacing.s,
+    borderRadius: theme.borderRadius.sm,
     alignItems: 'center',
     width: '100%',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   scoreText: {
-    color: '#007AFF',
+    color: theme.colors.primary, // Azul do tema
     fontSize: 12,
     fontWeight: 'bold',
     textTransform: 'uppercase',
   },
   scoreValue: {
-    color: '#007AFF',
+    color: theme.colors.primary, // Azul do tema
     fontSize: 24,
     fontWeight: '900',
   },

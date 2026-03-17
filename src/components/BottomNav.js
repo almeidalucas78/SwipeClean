@@ -1,11 +1,12 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Text, SafeAreaView } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
+import { theme } from '../styles/theme'; // <-- IMPORT DO TEMA
 
 const BottomNav = ({ activeTab, onChangeTab }) => {
   const tabs = [
     { id: 'timeline', icon: '📅', label: 'Por Data' },
     { id: 'heavy', icon: '⚖️', label: 'Tamanho' },
-    { id: 'smart', icon: '✨', label: 'Inteligente' }
+    { id: 'smart', icon: '📂', label: 'Álbuns' } 
   ];
 
   return (
@@ -31,17 +32,17 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingBottom: 20, // Espaço extra para a barrinha do iPhone/Android
+    borderTopColor: theme.colors.border,
+    paddingBottom: 20, 
   },
   tab: { alignItems: 'center', flex: 1 },
-  icon: { fontSize: 24, opacity: 0.5 },
+  icon: { fontSize: 24, marginBottom: 4, opacity: 0.5 },
   iconActive: { opacity: 1 },
-  label: { fontSize: 12, color: '#999', marginTop: 4, fontWeight: '500' },
-  labelActive: { color: '#1a1a1a', fontWeight: 'bold' },
+  label: { fontSize: 12, color: theme.colors.inactive, fontWeight: '600' },
+  labelActive: { color: theme.colors.primary, fontWeight: 'bold' },
 });
 
 export default BottomNav;
